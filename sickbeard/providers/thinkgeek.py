@@ -1,5 +1,5 @@
 # -*- coding: latin-1 -*-
-# Author: Raver2046 <raver2046@gmail.com>
+# Author: Raver2046 
 # based on tpi.py
 # URL: http://code.google.com/p/sickbeard/
 #
@@ -52,7 +52,7 @@ class THINKGEEKProvider(generic.TorrentProvider):
     def getSearchParams(self, searchString, audio_lang, french=None, fullSeason=False):
         results = []    
         if audio_lang == "en" and french==None:
-             results.append( urllib.urlencode( {
+            results.append( urllib.urlencode( {
                 'keywords': searchString  ,                                                         
             } ) + "&cid=34,62&[PARAMSTR]=" + searchString )
         elif audio_lang == "fr" or french:
@@ -89,7 +89,6 @@ class THINKGEEKProvider(generic.TorrentProvider):
         results = []
         for showName in showNames:
             results.extend( self.getSearchParams( "%s S%02dE%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode), ep_obj.show.audio_lang, french ))
-            results.extend( self.getSearchParams( "%s %dx%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode ), ep_obj.show.audio_lang, french ))
         return results
     
     def _get_title_and_url(self, item):
@@ -140,7 +139,7 @@ class THINKGEEKProvider(generic.TorrentProvider):
         
         r = self.opener.open( searchUrl )
 
-        soup = BeautifulSoup( r, "html.parser" )
+        soup = BeautifulSoup( r)
 
         resultsTable = soup.find("div", { "id" : "content"  })
         if resultsTable:
@@ -152,24 +151,26 @@ class THINKGEEKProvider(generic.TorrentProvider):
                 link = row.find("a",href=re.compile("action=details"))                                                       
                                   
                 if link:               
-                   title = link.text
-                   recherched=searchUrl.split("&[PARAMSTR]=")[1]
-                   recherched=recherched.replace(" ","(.*)")
-                   logger.log(u"THINKGEEK TITLE : " + title, logger.DEBUG)  
-                   logger.log(u"THINKGEEK CHECK MATCH : " + recherched, logger.DEBUG) 
-                   if re.match(recherched,title , re.IGNORECASE):                 
-                     downloadURL =  row.find("a",href=re.compile("action=download"))['href']            
-                     logger.log(u"THINKGEEK DOWNLOAD URL : " + title, logger.DEBUG) 
-                     quality = Quality.nameQuality( title )
-                     if quality==Quality.UNKNOWN and title:
-                       if '720p' not in title.lower() and '1080p' not in title.lower():
-                        quality=Quality.SDTV
-                     if show and french==None:
-                       results.append( THINKGEEKSearchResult( self.opener, title, downloadURL, quality, str(show.audio_lang) ) )
-                     elif show and french:
-                       results.append( THINKGEEKSearchResult( self.opener, title, downloadURL, quality, 'fr' ) )
-                     else:
-                       results.append( THINKGEEKSearchResult( self.opener, title, downloadURL, quality ) )        
+                    title = link.text
+                    recherched=searchUrl.split("&[PARAMSTR]=")[1]
+                    recherched=recherched.replace(".","(.*)").replace(" ","(.*)").replace("'","(.*)")
+                    logger.log(u"THINKGEEK TITLE : " + title, logger.DEBUG)  
+                    logger.log(u"THINKGEEK CHECK MATCH : " + recherched, logger.DEBUG) 
+                    if re.match(recherched,title , re.IGNORECASE):                 
+                        downloadURL =  row.find("a",href=re.compile("action=download"))['href']
+                    else:
+                        continue            
+                    logger.log(u"THINKGEEK DOWNLOAD URL : " + title, logger.DEBUG) 
+                    quality = Quality.nameQuality( title )
+                    if quality==Quality.UNKNOWN and title:
+                        if '720p' not in title.lower() and '1080p' not in title.lower():
+                            quality=Quality.SDTV
+                    if show and french==None:
+                        results.append( THINKGEEKSearchResult( self.opener, title, downloadURL, quality, str(show.audio_lang) ) )
+                    elif show and french:
+                        results.append( THINKGEEKSearchResult( self.opener, title, downloadURL, quality, 'fr' ) )
+                    else:
+                        results.append( THINKGEEKSearchResult( self.opener, title, downloadURL, quality ) )        
         return results
     
     def getResult(self, episodes):

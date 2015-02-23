@@ -51,19 +51,19 @@ class FTDBProvider(generic.TorrentProvider):
                 'name': searchString,
                 'exact' : 1,
                 'group': subcat
-            } ) + "&adv_cat%5Bs%5D%5B3%5D=101&adv_cat%5Bs%5D%5B4%5D=191"
+            } ) + "&adv_cat%5Bs%5D%5B3%5D=101&adv_cat%5Bs%5D%5B4%5D=191&adv_cat%5Bs%5D%5B9%5D=128"
         elif audio_lang == "fr" or french:
             return urllib.urlencode( {
                 'name': searchString,
                 'exact' : 1,
                 'group': subcat
-            } ) + "&adv_cat%5Bs%5D%5B1%5D=95&adv_cat%5Bs%5D%5B2%5D=190"
+            } ) + "&adv_cat%5Bs%5D%5B1%5D=95&adv_cat%5Bs%5D%5B2%5D=190&adv_cat%5Bs%5D%5B9%5D=128"
         else:
             return urllib.urlencode( {
                 'name': searchString,
                 'exact' : 1,
                 'group': subcat
-            } ) + "&adv_cat%5Bs%5D%5B1%5D=95&adv_cat%5Bs%5D%5B2%5D=190&adv_cat%5Bs%5D%5B3%5D=101&adv_cat%5Bs%5D%5B4%5D=191&adv_cat%5Bs%5D%5B5%5D=197&adv_cat%5Bs%5D%5B7%5D=199&adv_cat%5Bs%5D%5B8%5D=201"
+            } ) + "&adv_cat%5Bs%5D%5B1%5D=95&adv_cat%5Bs%5D%5B2%5D=190&adv_cat%5Bs%5D%5B3%5D=101&adv_cat%5Bs%5D%5B4%5D=191&adv_cat%5Bs%5D%5B5%5D=197&adv_cat%5Bs%5D%5B7%5D=199&adv_cat%5Bs%5D%5B8%5D=201&adv_cat%5Bs%5D%5B9%5D=128"
 
     def _get_season_search_strings(self, show, season):
 
@@ -146,6 +146,7 @@ class FTDBProvider(generic.TorrentProvider):
         })
 
         self.opener.open(self.url + '/?section=LOGIN&ajax=1', data).read()
+        self.login_done = self.opener
 
     def _doSearch(self, searchString, show=None, season=None, french=None):
 
@@ -157,7 +158,7 @@ class FTDBProvider(generic.TorrentProvider):
         logger.log(u"Search string: " + searchUrl, logger.DEBUG)
 
         r = self.opener.open( searchUrl )
-        soup = BeautifulSoup( r, "html.parser" )
+        soup = BeautifulSoup( r )
         resultsTable = soup.find("div", { "class" : "DataGrid" })
         if resultsTable:
             rows = resultsTable.findAll("ul")
@@ -166,9 +167,9 @@ class FTDBProvider(generic.TorrentProvider):
                 link = row.find("a", title=True)
                 title = link['title']
 
-                autogetURL = self.url + (row.find("li", { "class" : "torrents_name"}).find('a')['href'][1:]).replace('#FTD_MENU','&menu=4')
-                r = self.opener.open( autogetURL , 'wb').read()
-                soup = BeautifulSoup( r, "html.parser" )
+                autogetURL = self.url +'/'+ (row.find("li", { "class" : "torrents_name"}).find('a')['href'][1:]).replace('#FTD_MENU','&menu=4')
+                r = self.opener.open(autogetURL,'wb').read()
+                soup = BeautifulSoup( r)
                 downloadURL = soup.find("div", { "class" : "autoget"}).find('a')['href']
 
                 quality = Quality.nameQuality( title )

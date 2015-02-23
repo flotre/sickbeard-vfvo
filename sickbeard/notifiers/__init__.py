@@ -31,6 +31,7 @@ import prowl
 from . import libnotify
 import pushover
 import boxcar
+import boxcar2
 import nma
 import mail
 import pushalot
@@ -38,6 +39,7 @@ import pushbullet
 
 import tweet
 import trakt
+import betaseries
 
 from sickbeard.common import *
 
@@ -55,12 +57,14 @@ prowl_notifier = prowl.ProwlNotifier()
 libnotify_notifier = libnotify.LibnotifyNotifier()
 pushover_notifier = pushover.PushoverNotifier()
 boxcar_notifier = boxcar.BoxcarNotifier()
+boxcar2_notifier = boxcar2.Boxcar2Notifier()
 nma_notifier = nma.NMA_Notifier()
 pushalot_notifier = pushalot.PushalotNotifier()
 pushbullet_notifier = pushbullet.PushbulletNotifier()
 # online
 twitter_notifier = tweet.TwitterNotifier()
 trakt_notifier = trakt.TraktNotifier()
+betaseries_notifier = betaseries.BetaSeriesNotifier()
 mail_notifier = mail.MailNotifier()
 
 notifiers = [
@@ -76,11 +80,13 @@ notifiers = [
     prowl_notifier,
     pushover_notifier,
     boxcar_notifier,
+    boxcar2_notifier,
     nma_notifier,
     pushalot_notifier,
     pushbullet_notifier,
     twitter_notifier,
     trakt_notifier,
+    betaseries_notifier,
     mail_notifier,
 ]
 

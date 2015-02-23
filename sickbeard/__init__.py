@@ -30,7 +30,7 @@ from threading import Lock
 
 # apparently py2exe won't build these unless they're imported somewhere
 from sickbeard import providers, metadata
-from providers import ezrss, tvtorrents, torrentleech, btn, nzbsrus, newznab, womble, nzbx, omgwtfnzbs, binnewz, t411, ftdb, tpi, fnt, addict, cpasbien, piratebay, gks, kat, ethor, xthor, thinkgeek
+from providers import ezrss, tvtorrents, torrentleech, btn, nzbsrus, newznab, womble, nzbx, omgwtfnzbs, binnewz, t411, ftdb, libertalia, tpi, fnt, addict, cpasbien, piratebay, gks, kat, ethor, xthor, thinkgeek
 from sickbeard.config import CheckSection, check_setting_int, check_setting_str, ConfigMigrator
 
 from sickbeard import searchCurrent, searchBacklog, showUpdater, versionChecker, properFinder, frenchFinder, autoPostProcesser, subtitles, traktWatchListChecker, SentFTPChecker
@@ -156,6 +156,7 @@ NZB_METHOD = None
 USENET_RETENTION = None
 TORRENT_METHOD = None
 TORRENT_DIR = None
+NZB_DIR = None
 DOWNLOAD_PROPERS = None
 DOWNLOAD_FRENCH = None
 PREFERED_METHOD = None
@@ -180,8 +181,6 @@ ETHOR_KEY = None
 
 BTN = False
 BTN_API_KEY = None
-
-TORRENT_DIR = None
 
 ADD_SHOWS_WO_DIR = None
 CREATE_MISSING_SHOW_DIRS = None
@@ -232,6 +231,10 @@ ADDICT_PASSWORD = None
 FNT = False
 FNT_USERNAME = None
 FNT_PASSWORD = None
+
+LIBERTALIA = False
+LIBERTALIA_USERNAME = None
+LIBERTALIA_PASSWORD = None
 
 XTHOR = False
 XTHOR_USERNAME = None
@@ -330,11 +333,19 @@ BOXCAR_USERNAME = None
 BOXCAR_PASSWORD = None
 BOXCAR_PREFIX = None
 
+USE_BOXCAR2 = False
+BOXCAR2_NOTIFY_ONSNATCH = False
+BOXCAR2_NOTIFY_ONDOWNLOAD = False
+BOXCAR2_NOTIFY_ONSUBTITLEDOWNLOAD = False
+BOXCAR2_ACCESS_TOKEN = None
+BOXCAR2_SOUND = None
+
 USE_PUSHOVER = False
 PUSHOVER_NOTIFY_ONSNATCH = False
 PUSHOVER_NOTIFY_ONDOWNLOAD = False
 PUSHOVER_NOTIFY_ONSUBTITLEDOWNLOAD = False
 PUSHOVER_USERKEY = None
+PUSHOVER_PRIO = None
 
 USE_LIBNOTIFY = False
 LIBNOTIFY_NOTIFY_ONSNATCH = False
@@ -366,6 +377,13 @@ TRAKT_REMOVE_WATCHLIST = False
 TRAKT_USE_WATCHLIST = False
 TRAKT_METHOD_ADD = 0
 TRAKT_START_PAUSED = False
+
+USE_BETASERIES = False
+BETASERIES_USERNAME = None
+BETASERIES_PASSWORD = None
+# This key is registered for Sick Beard.
+# For your application, please get one at http://www.betaseries.com/api/
+BETASERIES_API = '94318dc0bb30'
 
 USE_PYTIVO = False
 PYTIVO_NOTIFY_ONSNATCH = False
@@ -464,6 +482,7 @@ def initialize(consoleLogging=True):
                 USE_XBMC, XBMC_NOTIFY_ONSNATCH, XBMC_NOTIFY_ONDOWNLOAD, XBMC_NOTIFY_ONSUBTITLEDOWNLOAD, XBMC_UPDATE_FULL, XBMC_UPDATE_ONLYFIRST, \
                 XBMC_UPDATE_LIBRARY, XBMC_HOST, XBMC_USERNAME, XBMC_PASSWORD, \
                 USE_TRAKT, TRAKT_USERNAME, TRAKT_PASSWORD, TRAKT_API,TRAKT_REMOVE_WATCHLIST,TRAKT_USE_WATCHLIST,TRAKT_METHOD_ADD,TRAKT_START_PAUSED,traktWatchListCheckerSchedular, \
+                USE_BETASERIES, BETASERIES_USERNAME, BETASERIES_PASSWORD, BETASERIES_API, \
                 USE_PLEX, PLEX_NOTIFY_ONSNATCH, PLEX_NOTIFY_ONDOWNLOAD, PLEX_NOTIFY_ONSUBTITLEDOWNLOAD, PLEX_UPDATE_LIBRARY, \
                 PLEX_SERVER_HOST, PLEX_HOST, PLEX_USERNAME, PLEX_PASSWORD, \
                 showUpdateScheduler, __INITIALIZED__, LAUNCH_BROWSER, UPDATE_SHOWS_ON_START, SORT_ARTICLE, FRENCH_COLUMN, showList, loadingShowList, \
@@ -474,6 +493,7 @@ def initialize(consoleLogging=True):
                 TPI, TPI_USERNAME, TPI_PASSWORD, \
                 ADDICT, ADDICT_USERNAME, ADDICT_PASSWORD, \
                 FNT, FNT_USERNAME, FNT_PASSWORD, \
+                LIBERTALIA, LIBERTALIA_USERNAME, LIBERTALIA_PASSWORD, \
                 XTHOR, XTHOR_USERNAME, XTHOR_PASSWORD, \
                 THINKGEEK, THINKGEEK_USERNAME, THINKGEEK_PASSWORD, \
                 THEPIRATEBAY, THEPIRATEBAY_PROXY, THEPIRATEBAY_PROXY_URL, THEPIRATEBAY_TRUSTED, \
@@ -497,7 +517,8 @@ def initialize(consoleLogging=True):
                 NZBSRUS, NZBSRUS_UID, NZBSRUS_HASH, WOMBLE, NZBX, NZBX_COMPLETION, OMGWTFNZBS, OMGWTFNZBS_UID, OMGWTFNZBS_KEY, providerList, newznabProviderList, \
                 EXTRA_SCRIPTS, USE_TWITTER, TWITTER_USERNAME, TWITTER_PASSWORD, TWITTER_PREFIX, \
                 USE_BOXCAR, BOXCAR_USERNAME, BOXCAR_PASSWORD, BOXCAR_NOTIFY_ONDOWNLOAD, BOXCAR_NOTIFY_ONSUBTITLEDOWNLOAD, BOXCAR_NOTIFY_ONSNATCH, \
-                USE_PUSHOVER, PUSHOVER_USERKEY, PUSHOVER_NOTIFY_ONDOWNLOAD, PUSHOVER_NOTIFY_ONSUBTITLEDOWNLOAD, PUSHOVER_NOTIFY_ONSNATCH, \
+                USE_BOXCAR2, BOXCAR2_ACCESS_TOKEN, BOXCAR2_NOTIFY_ONDOWNLOAD, BOXCAR2_NOTIFY_ONSUBTITLEDOWNLOAD, BOXCAR2_NOTIFY_ONSNATCH, BOXCAR2_SOUND, \
+                USE_PUSHOVER, PUSHOVER_USERKEY,PUSHOVER_PRIO, PUSHOVER_NOTIFY_ONDOWNLOAD, PUSHOVER_NOTIFY_ONSUBTITLEDOWNLOAD, PUSHOVER_NOTIFY_ONSNATCH, \
                 USE_LIBNOTIFY, LIBNOTIFY_NOTIFY_ONSNATCH, LIBNOTIFY_NOTIFY_ONDOWNLOAD, LIBNOTIFY_NOTIFY_ONSUBTITLEDOWNLOAD, USE_NMJ, NMJ_HOST, NMJ_DATABASE, NMJ_MOUNT, USE_NMJv2, NMJv2_HOST, NMJv2_DATABASE, NMJv2_DBLOC, USE_SYNOINDEX, \
                 USE_BANNER, USE_LISTVIEW, METADATA_XBMC, METADATA_XBMCFRODO, METADATA_MEDIABROWSER, METADATA_PS3, METADATA_SYNOLOGY, metadata_provider_dict, \
                 NEWZBIN, NEWZBIN_USERNAME, NEWZBIN_PASSWORD, GIT_PATH, MOVE_ASSOCIATED_FILES, \
@@ -780,6 +801,11 @@ def initialize(consoleLogging=True):
         FNT_USERNAME = check_setting_str(CFG, 'FNT', 'username', '')
         FNT_PASSWORD = check_setting_str(CFG, 'FNT', 'password', '')
         
+        CheckSection(CFG, 'LIBERTALIA')
+        LIBERTALIA = bool(check_setting_int(CFG, 'LIBERTALIA', 'libertalia', 0))
+        LIBERTALIA_USERNAME = check_setting_str(CFG, 'LIBERTALIA', 'username', '')
+        LIBERTALIA_PASSWORD = check_setting_str(CFG, 'LIBERTALIA', 'password', '')
+        
         CheckSection(CFG, 'XTHOR')
         XTHOR = bool(check_setting_int(CFG, 'XTHOR', 'xthor', 0))
         XTHOR_USERNAME = check_setting_str(CFG, 'XTHOR', 'username', '')
@@ -899,12 +925,21 @@ def initialize(consoleLogging=True):
         BOXCAR_NOTIFY_ONSUBTITLEDOWNLOAD = bool(check_setting_int(CFG, 'Boxcar', 'boxcar_notify_onsubtitledownload', 0))
         BOXCAR_USERNAME = check_setting_str(CFG, 'Boxcar', 'boxcar_username', '')
 
+        CheckSection(CFG, 'Boxcar2')
+        USE_BOXCAR2 = bool(check_setting_int(CFG, 'Boxcar2', 'use_boxcar2', 0))
+        BOXCAR2_NOTIFY_ONSNATCH = bool(check_setting_int(CFG, 'Boxcar2', 'boxcar2_notify_onsnatch', 0))
+        BOXCAR2_NOTIFY_ONDOWNLOAD = bool(check_setting_int(CFG, 'Boxcar2', 'boxcar2_notify_ondownload', 0))
+        BOXCAR2_NOTIFY_ONSUBTITLEDOWNLOAD = bool(check_setting_int(CFG, 'Boxcar2', 'boxcar2_notify_onsubtitledownload', 0))
+        BOXCAR2_ACCESS_TOKEN = check_setting_str(CFG, 'Boxcar2', 'boxcar2_access_token', '')
+        BOXCAR2_SOUND = check_setting_str(CFG, 'Boxcar2', 'boxcar2_sound', 'default')
+
         CheckSection(CFG, 'Pushover')
         USE_PUSHOVER = bool(check_setting_int(CFG, 'Pushover', 'use_pushover', 0))
         PUSHOVER_NOTIFY_ONSNATCH = bool(check_setting_int(CFG, 'Pushover', 'pushover_notify_onsnatch', 0))
         PUSHOVER_NOTIFY_ONDOWNLOAD = bool(check_setting_int(CFG, 'Pushover', 'pushover_notify_ondownload', 0))
         PUSHOVER_NOTIFY_ONSUBTITLEDOWNLOAD = bool(check_setting_int(CFG, 'Pushover', 'pushover_notify_onsubtitledownload', 0))
         PUSHOVER_USERKEY = check_setting_str(CFG, 'Pushover', 'pushover_userkey', '')
+        PUSHOVER_PRIO = check_setting_str(CFG, 'Pushover', 'pushover_prio', '')
             
         CheckSection(CFG, 'Pushbullet')
         USE_PUSHBULLET = bool(check_setting_int(CFG, 'Pushbullet', 'use_pushbullet', 0))
@@ -951,7 +986,13 @@ def initialize(consoleLogging=True):
         TRAKT_USE_WATCHLIST = bool(check_setting_int(CFG, 'Trakt', 'trakt_use_watchlist', 0))
         TRAKT_METHOD_ADD = check_setting_str(CFG, 'Trakt', 'trakt_method_add', "0")
         TRAKT_START_PAUSED = bool(check_setting_int(CFG, 'Trakt', 'trakt_start_paused', 0))
-
+        
+        CheckSection(CFG, 'BetaSeries')
+        USE_BETASERIES = bool(check_setting_int(CFG, 'BetaSeries', 'use_betaseries', 0))
+        BETASERIES_USERNAME = check_setting_str(CFG, 'BetaSeries', 'betaseries_username', '')
+        BETASERIES_PASSWORD = check_setting_str(CFG, 'BetaSeries', 'betaseries_password', '')
+        BETASERIES_API = check_setting_str(CFG, 'BetaSeries', 'betaseries_api', '')
+        
         CheckSection(CFG, 'pyTivo')
         USE_PYTIVO = bool(check_setting_int(CFG, 'pyTivo', 'use_pytivo', 0))
         PYTIVO_NOTIFY_ONSNATCH = bool(check_setting_int(CFG, 'pyTivo', 'pytivo_notify_onsnatch', 0))
@@ -1526,6 +1567,11 @@ def save_config():
     new_config['FNT']['username'] = FNT_USERNAME
     new_config['FNT']['password'] = FNT_PASSWORD
     
+    new_config['LIBERTALIA'] = {}
+    new_config['LIBERTALIA']['libertalia'] = int(LIBERTALIA)
+    new_config['LIBERTALIA']['username'] = LIBERTALIA_USERNAME
+    new_config['LIBERTALIA']['password'] = LIBERTALIA_PASSWORD
+    
     new_config['XTHOR'] = {}
     new_config['XTHOR']['xthor'] = int(XTHOR)
     new_config['XTHOR']['username'] = XTHOR_USERNAME
@@ -1641,12 +1687,21 @@ def save_config():
     new_config['Boxcar']['boxcar_notify_onsubtitledownload'] = int(BOXCAR_NOTIFY_ONSUBTITLEDOWNLOAD)
     new_config['Boxcar']['boxcar_username'] = BOXCAR_USERNAME
 
+    new_config['Boxcar2'] = {}
+    new_config['Boxcar2']['use_boxcar2'] = int(USE_BOXCAR2)
+    new_config['Boxcar2']['boxcar2_notify_onsnatch'] = int(BOXCAR2_NOTIFY_ONSNATCH)
+    new_config['Boxcar2']['boxcar2_notify_ondownload'] = int(BOXCAR2_NOTIFY_ONDOWNLOAD)
+    new_config['Boxcar2']['boxcar2_notify_onsubtitledownload'] = int(BOXCAR2_NOTIFY_ONSUBTITLEDOWNLOAD)
+    new_config['Boxcar2']['boxcar2_access_token'] = BOXCAR2_ACCESS_TOKEN
+    new_config['Boxcar2']['boxcar2_sound'] = BOXCAR2_SOUND
+
     new_config['Pushover'] = {}
     new_config['Pushover']['use_pushover'] = int(USE_PUSHOVER)
     new_config['Pushover']['pushover_notify_onsnatch'] = int(PUSHOVER_NOTIFY_ONSNATCH)
     new_config['Pushover']['pushover_notify_ondownload'] = int(PUSHOVER_NOTIFY_ONDOWNLOAD)
     new_config['Pushover']['pushover_notify_onsubtitledownload'] = int(PUSHOVER_NOTIFY_ONSUBTITLEDOWNLOAD)
     new_config['Pushover']['pushover_userkey'] = PUSHOVER_USERKEY
+    new_config['Pushover']['pushover_prio'] = PUSHOVER_PRIO
 
     new_config['Pushbullet'] = {}
     new_config['Pushbullet']['use_pushbullet'] = int(USE_PUSHBULLET)
@@ -1693,7 +1748,13 @@ def save_config():
     new_config['Trakt']['trakt_use_watchlist'] = int(TRAKT_USE_WATCHLIST)
     new_config['Trakt']['trakt_method_add'] = TRAKT_METHOD_ADD
     new_config['Trakt']['trakt_start_paused'] = int(TRAKT_START_PAUSED)
-
+    
+    new_config['BetaSeries'] = {}
+    new_config['BetaSeries']['use_betaseries'] = int(USE_BETASERIES)
+    new_config['BetaSeries']['betaseries_username'] = BETASERIES_USERNAME
+    new_config['BetaSeries']['betaseries_password'] = BETASERIES_PASSWORD
+    new_config['BetaSeries']['betaseries_api'] = BETASERIES_API
+	
     new_config['pyTivo'] = {}
     new_config['pyTivo']['use_pytivo'] = int(USE_PYTIVO)
     new_config['pyTivo']['pytivo_notify_onsnatch'] = int(PYTIVO_NOTIFY_ONSNATCH)

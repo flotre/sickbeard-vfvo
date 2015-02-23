@@ -47,6 +47,22 @@ $(document).ready(function () {
             function (data) { $('#testBoxcar-result').html(data); });
     });
 
+    $("#testBoxcar2").click(function () {
+        var boxcar2_access_token = $.trim($("#boxcar2_access_token").val());
+        var boxcar2_sound = $("#boxcar2_sound").val() || "default";
+        if (!boxcar2_access_token) {
+            $("#testBoxcar2-result").html("Please fill out the necessary fields above.");
+            return;
+        }
+        $(this).prop("disabled", true);
+        $("#testBoxcar2-result").html(loading);
+        $.get(sbRoot + "/home/testBoxcar2", {'accessToken': boxcar2_access_token, 'sound': boxcar2_sound})
+            .done(function (data) {
+                $("#testBoxcar2-result").html(data);
+                $("#testBoxcar2").prop("disabled", false);
+            });
+    });
+
     $('#testPushover').click(function () {
         $('#testPushover-result').html(loading);
         var pushover_userkey = $("#pushover_userkey").val();
@@ -230,18 +246,37 @@ $(document).ready(function () {
             $("#pushbullet_api").focus();
             return false;
         }
-
+        $("#pushbullet_device_list").html('');
         var current_pushbullet_device = $("#pushbullet_device").val();
         $.get(sbRoot + "/home/getPushbulletDevices", {'api': pushbullet_api},
             function (data) {
                 var devices = jQuery.parseJSON(data).devices;
-                $("#pushbullet_device_list").html('');
+                
                 for (var i = 0; i < devices.length; i++) {
                     if(devices[i].active == true && devices[i].pushable == true){
-                        if(current_pushbullet_device == devices[i].iden) {
-                            $("#pushbullet_device_list").append('<option value="'+devices[i].iden+'" selected>' + devices[i].nickname + '</option>')
+                        if(current_pushbullet_device ==  'device:'+devices[i].iden) {
+                            $("#pushbullet_device_list").append('<option value="device:'+devices[i].iden+'" selected>' + devices[i].nickname + '</option>')
                         } else {
-                            $("#pushbullet_device_list").append('<option value="'+devices[i].iden+'">' + devices[i].nickname + '</option>')
+                            $("#pushbullet_device_list").append('<option value="device:'+devices[i].iden+'">' + devices[i].nickname + '</option>')
+                        }
+                    }
+                }
+                if(msg) {
+                    $('#testPushbullet-result').html(msg);
+                }
+            }
+        );
+
+        $.get(sbRoot + "/home/getPushbulletChannels", {'api': pushbullet_api},
+            function (data) {
+                var channels = jQuery.parseJSON(data).channels;
+
+                for (var i = 0; i < channels.length; i++) {
+                    if(channels[i].active == true){
+                        if(current_pushbullet_device == 'channel:'+channels[i].tag) {
+                            $("#pushbullet_device_list").append('<option value="channel:'+channels[i].tag+'" selected>' + channels[i].name + '</option>')
+                        } else {
+                            $("#pushbullet_device_list").append('<option value="channel:'+channels[i].tag+'">' + channels[i].name + '</option>')
                         }
                     }
                 }
@@ -263,6 +298,15 @@ $(document).ready(function () {
     
     // we have to call this function on dom ready to create the devices select
     get_pushbullet_devices();
+	
+    $('#testBetaSeries').click(function () {
+        $('#testBetaSeries-result').html(loading);
+        var betaseries_username = $("#betaseries_username").val();
+        var betaseries_password = $("#betaseries_password").val();
+
+        $.get(sbRoot + "/home/testBetaSeries", {'username': betaseries_username, 'password': betaseries_password},
+            function (data) { $('#testBetaSeries-result').html(data); });
+    });
 
     $('#email_show').change(function () {
         var key = parseInt($('#email_show').val(), 10);

@@ -1,3 +1,4 @@
+# -*- coding: latin-1 -*-
 # Author: Nic Wolfe <nic@wolfeden.ca>
 # URL: http://code.google.com/p/sickbeard/
 #
@@ -43,9 +44,9 @@ NOTIFY_DOWNLOAD = 2
 NOTIFY_SUBTITLE_DOWNLOAD = 3
 
 notifyStrings = {}
-notifyStrings[NOTIFY_SNATCH] = "Started Download"
-notifyStrings[NOTIFY_DOWNLOAD] = "Download Finished"
-notifyStrings[NOTIFY_SUBTITLE_DOWNLOAD] = "Subtitle Download Finished"
+notifyStrings[NOTIFY_SNATCH] = "Download en cours"
+notifyStrings[NOTIFY_DOWNLOAD] = "Download fini"
+notifyStrings[NOTIFY_SUBTITLE_DOWNLOAD] = "Sous-titre"
 
 ### Episode statuses
 UNKNOWN = -1 # should never happen
