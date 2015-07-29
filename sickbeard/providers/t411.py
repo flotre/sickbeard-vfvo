@@ -1,5 +1,5 @@
 # -*- coding: latin-1 -*-
-# Author: Guillaume Serre <guillaume.serre@gmail.com>
+# Author: djoole <bobby.djoole@gmail.com>
 # URL: http://code.google.com/p/sickbeard/
 #
 # This file is part of Sick Beard.
@@ -12,164 +12,267 @@
 # Sick Beard is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+# GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-from bs4 import BeautifulSoup
-from sickbeard import classes, show_name_helpers, logger
-from sickbeard.common import Quality
-import generic
-import cookielib
+import traceback
+import re
+import datetime
+import time
+from requests.auth import AuthBase
 import sickbeard
-import urllib
-import urllib2
+import generic
+
+import requests
+from requests import exceptions
+
+from sickbeard.common import Quality
+from sickbeard import logger
+from sickbeard import tvcache
+from sickbeard import show_name_helpers
+from sickbeard import db
+from sickbeard import helpers
+from sickbeard import classes
+from sickbeard.helpers import sanitizeSceneName
+from sickbeard.exceptions import ex
 
 
 class T411Provider(generic.TorrentProvider):
-
     def __init__(self):
-        
         generic.TorrentProvider.__init__(self, "T411")
 
         self.supportsBacklog = True
-        
-        self.cj = cookielib.CookieJar()
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
-        self.opener.addheaders = [('Content-Type', 'application/x-www-form-urlencoded'),('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1.7) Gecko/20091221 Firefox/3.5.7 (.NET CLR 3.5.30729)')]
-        
-        self.url = "http://www.t411.me"
-        
-        self.login_done = False
-        
+        self.enabled = False
+        self.username = None
+        self.password = None
+        self.ratio = None
+        self.token = None
+        self.tokenLastUpdate = None
+
+        self.cache = T411Cache(self)
+
+        self.urls = {'base_url': 'http://www.t411.io/',
+                     'search': 'https://api.t411.io/torrents/search/%s?cid=%s&limit=100',
+                     'login_page': 'https://api.t411.io/auth',
+                     'download': 'https://api.t411.io/torrents/download/%s',
+        }
+
+        self.url = self.urls['base_url']
+
+        self.subcategories = [433, 637, 455, 639]
+
     def isEnabled(self):
-        return sickbeard.T411
-    
-    def getSearchParams(self, searchString, audio_lang, subcat, french=None):
-        if audio_lang == "en" and french==None:
-            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'submit' : 'Recherche', 'subcat': subcat } ) + "&term%5B17%5D%5B%5D=721"
-        elif audio_lang == "fr" or french:
-            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'submit' : 'Recherche', 'subcat': subcat } ) + "&term%5B17%5D%5B%5D=541&term%5B17%5D%5B%5D=542"
+        return self.enabled
+
+    def imageName(self):
+        return 't411.png'
+
+    def getQuality(self, item, anime=False):
+        quality = Quality.sceneQuality(item[0], anime)
+        return quality
+
+    def _doLogin(self):
+
+        if self.token is not None:
+            if time.time() < (self.tokenLastUpdate + 30 * 60):
+                logger.log('T411 Authentication token is still valid', logger.DEBUG)
+                return True
+
+        login_params = {'username': self.username,
+                        'password': self.password}
+
+        self.session = requests.Session()
+
+        logger.log('Performing authentication to T411', logger.DEBUG)
+
+        try:
+            response = helpers.getURL(self.urls['login_page'], post_data=login_params, timeout=30, session=self.session, json=True)
+        except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError), e:
+            logger.log(u'Unable to connect to ' + self.name + ' provider: ' + ex(e), logger.ERROR)
+            return False
+
+        if 'token' in response:
+            self.token = response['token']
+            self.tokenLastUpdate = time.time()
+            self.uid = response['uid'].encode('ascii', 'ignore')
+            self.session.auth = T411Auth(self.token)
+            logger.log('Using T411 Authorization token : ' + self.token, logger.DEBUG)
+            return True
         else:
-            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'submit' : 'Recherche', 'subcat': subcat } )
+            logger.log('T411 token not found in authentication response', logger.ERROR)
+            return False
 
-    def seasonValue(self, season):
-        values = [968, 969, 970, 971, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 983, 984, 985, 986, 987, 988, 989, 990, 991, 994, 992, 993, 995, 996, 997]
-        return values[int(season) -1]
+    def _get_season_search_strings(self, ep_obj):
 
-    def episodeValue(self, episode):
-        values = [937, 938, 939, 940, 941, 942, 943, 944, 946, 947, 948, 949, 950, 951, 952, 954, 953, 955, 956, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966, 967, 1088, 1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117]
-        return values[int(episode) - 1]
-        
-    def _get_season_search_strings(self, show, season):
+        search_string = {'Season': []}
+        for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
+            if ep_obj.show.air_by_date or ep_obj.show.sports:
+                ep_string = show_name + '.' + str(ep_obj.airdate).split('-')[0]
+            elif ep_obj.show.anime:
+                ep_string = show_name + '.' + "%d" % ep_obj.scene_absolute_number
+            else:
+                ep_string = show_name + '.S%02d' % int(ep_obj.scene_season)  # 1) showName.SXX
 
-        showNam = show_name_helpers.allPossibleShowNames(show)
-        showNames = list(set(showNam))
+            search_string['Season'].append(ep_string)
+
+        return [search_string]
+
+    def _get_episode_search_strings(self, ep_obj, add_string=''):
+
+        search_string = {'Episode': []}
+
+        if not ep_obj:
+            return []
+
+        if self.show.air_by_date:
+            for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
+                ep_string = sanitizeSceneName(show_name) + '.' + \
+                            str(ep_obj.airdate).replace('-', '|')
+                search_string['Episode'].append(ep_string)
+        elif self.show.sports:
+            for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
+                ep_string = sanitizeSceneName(show_name) + '.' + \
+                            str(ep_obj.airdate).replace('-', '|') + '|' + \
+                            ep_obj.airdate.strftime('%b')
+                search_string['Episode'].append(ep_string)
+        elif self.show.anime:
+            for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
+                ep_string = sanitizeSceneName(show_name) + '.' + \
+                            "%i" % int(ep_obj.scene_absolute_number)
+                search_string['Episode'].append(ep_string)
+        else:
+            for show_name in set(show_name_helpers.allPossibleShowNames(self.show)):
+                ep_string = show_name_helpers.sanitizeSceneName(show_name) + '.' + \
+                            sickbeard.config.naming_ep_type[2] % {'seasonnumber': ep_obj.scene_season,
+                                                                  'episodenumber': ep_obj.scene_episode} + ' %s' % add_string
+
+                search_string['Episode'].append(re.sub('\s+', '.', ep_string))
+
+        return [search_string]
+
+    def _doSearch(self, search_params, search_mode='eponly', epcount=0, age=0, epObj=None):
+
+        logger.log(u"_doSearch started with ..." + str(search_params), logger.DEBUG)
+
         results = []
-        for showName in showNames:
-            if (int(season) < 31):
-                results.append( self.getSearchParams(showName, show.audio_lang, 433 ) + "&" + urllib.urlencode({'term[46][]': 936, 'term[45][]': self.seasonValue(season)}))
-                results.append( self.getSearchParams(showName, show.audio_lang, 637 ) + "&" + urllib.urlencode({'term[46][]': 936, 'term[45][]': self.seasonValue(season)}))
-            #results.append( self.getSearchParams(showName + " S%02d" % season, show.audio_lang, 433 )) TOO MANY ERRORS
-            #results.append( self.getSearchParams(showName + " S%02d" % season, show.audio_lang, 637 ))
-            #results.append( self.getSearchParams(showName + " S%02d" % season, show.audio_lang, 634 ))
-            #results.append( self.getSearchParams(showName + " saison %02d" % season, show.audio_lang, 433 ))
-            #results.append( self.getSearchParams(showName + " saison %02d" % season, show.audio_lang, 637 ))
-            results.append( self.getSearchParams(showName + " saison %02d" % season, show.audio_lang, 634 ))
+        items = {'Season': [], 'Episode': [], 'RSS': []}
+
+        for mode in search_params.keys():
+
+            for search_string in search_params[mode]:
+
+                for sc in self.subcategories:
+                    searchURL = self.urls['search'] % (search_string, sc)
+                    logger.log(u"" + self.name + " search page URL: " + searchURL, logger.DEBUG)
+
+                    data = self.getURL(searchURL, json=True)
+                    if not data:
+                        continue
+                    try:
+
+                        if 'torrents' not in data:
+                            logger.log(
+                                u"The Data returned from " + self.name + " do not contains any torrent : " + str(data),
+                                logger.DEBUG)
+                            continue
+
+                        torrents = data['torrents']
+
+                        if len(torrents) > 0:
+                            for torrent in torrents:
+                                try:
+                                    torrent_name = torrent['name']
+                                    torrent_id = torrent['id']
+                                    torrent_download_url = (self.urls['download'] % torrent_id).encode('utf8')
+
+                                    if not torrent_name or not torrent_download_url:
+                                        continue
+
+                                    item = torrent_name, torrent_download_url
+                                    logger.log(u"Found result: " + torrent_name + " (" + torrent_download_url + ")",
+                                               logger.DEBUG)
+                                    items[mode].append(item)
+                                except Exception as e:
+                                    logger.log(u"Invalid torrent data, skipping results: {0}".format(str(torrent)), logger.DEBUG)
+                                    continue
+                        else:
+                            logger.log(u"The Data returned from " + self.name + " do not contains any torrent",
+                                       logger.WARNING)
+                            continue
+
+                    except Exception, e:
+                        logger.log(u"Failed parsing " + self.name + " Traceback: " + traceback.format_exc(),
+                                   logger.ERROR)
+            results += items[mode]
+
         return results
 
-    def _get_episode_search_strings(self, ep_obj, french=None):
-
-        showNam = show_name_helpers.allPossibleShowNames(ep_obj.show)
-        showNames = list(set(showNam))
-        results = []
-        for showName in showNames:
-            results.append( self.getSearchParams( "%s S%02dE%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode), ep_obj.show.audio_lang, 433, french ))
-            if (int(ep_obj.scene_season) < 31 and int(ep_obj.scene_episode) < 61):
-                results.append( self.getSearchParams( showName, ep_obj.show.audio_lang, 433, french)+ "&" + urllib.urlencode({'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season)}))
-            #results.append( self.getSearchParams( "%s %dx%d" % ( showName, ep_obj.season, ep_obj.episode ), ep_obj.show.audio_lang , 433 )) MAY RETURN 1x12 WHEN SEARCHING 1x1
-            results.append( self.getSearchParams( "%s %dx%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode ), ep_obj.show.audio_lang, 433, french ))
-            results.append( self.getSearchParams( "%s S%02dE%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode), ep_obj.show.audio_lang, 637, french ))
-            if (int(ep_obj.scene_season) < 31 and int(ep_obj.scene_episode) < 61):
-                results.append( self.getSearchParams( showName, ep_obj.show.audio_lang, 637, french)+ "&" + urllib.urlencode({'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season)}))
-            #results.append( self.getSearchParams( "%s %dx%d" % ( showName, ep_obj.season, ep_obj.episode ), ep_obj.show.audio_lang, 637 ))
-            results.append( self.getSearchParams( "%s %dx%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode ), ep_obj.show.audio_lang, 637, french ))
-            results.append( self.getSearchParams( "%s S%02dE%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode), ep_obj.show.audio_lang, 634, french))
-            #results.append( self.getSearchParams( "%s %dx%d" % ( showName, ep_obj.season, ep_obj.episode ), ep_obj.show.audio_lang, 634 ))
-            results.append( self.getSearchParams( "%s %dx%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode ), ep_obj.show.audio_lang, 634, french ))
-            results.append( self.getSearchParams( "%s S%02dE%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode), ep_obj.show.audio_lang, 639, french))
-            #results.append( self.getSearchParams( "%s %dx%d" % ( showName, ep_obj.season, ep_obj.episode ), ep_obj.show.audio_lang, 634 ))
-            results.append( self.getSearchParams( "%s %dx%02d" % ( showName, ep_obj.scene_season, ep_obj.scene_episode ), ep_obj.show.audio_lang, 639, french ))
-        return results
-    
     def _get_title_and_url(self, item):
-        return (item.title, item.url)
-    
-    def getQuality(self, item):
-        return item.getQuality()
-    
-    def _doLogin(self, login, password):
 
-        data = urllib.urlencode({'login': login, 'password' : password, 'submit' : 'Connexion', 'remember': 1, 'url' : '/'})
-        self.opener.open(self.url + '/users/login', data)
-    
-    def _doSearch(self, searchString, show=None, season=None, french=None):
-        
-        if not self.login_done:
-            self._doLogin( sickbeard.T411_USERNAME, sickbeard.T411_PASSWORD )
+        title, url = item
+
+        if title:
+            title = self._clean_title_from_provider(title)
+
+        if url:
+            url = str(url).replace('&amp;', '&')
+
+        return title, url
+
+    def findPropers(self, search_date=datetime.datetime.today()):
 
         results = []
-        searchUrl = self.url + '/torrents/search/?' + searchString.replace('!','')
-        logger.log(u"Search string: " + searchUrl, logger.DEBUG)
-        
-        r = self.opener.open( searchUrl )
-        soup = BeautifulSoup( r, "html.parser" )
-        resultsTable = soup.find("table", { "class" : "results" })
-        if resultsTable:
-            rows = resultsTable.find("tbody").findAll("tr")
-    
-            for row in rows:
-                link = row.find("a", title=True)
-                title = link['title']
-                id = row.find_all('td')[2].find_all('a')[0]['href'][1:].replace('torrents/nfo/?id=','')
-                downloadURL = ('http://www.t411.me/torrents/download/?id=%s' % id)
-                
-                quality = Quality.nameQuality( title )
-                if quality==Quality.UNKNOWN and title:
-                    if '720p' not in title.lower() and '1080p' not in title.lower():
-                        quality=Quality.SDTV
-                if show and french==None:
-                    results.append( T411SearchResult( self.opener, link['title'], downloadURL, quality, str(show.audio_lang) ) )
-                elif show and french:
-                    results.append( T411SearchResult( self.opener, link['title'], downloadURL, quality, 'fr' ) )
-                else:
-                    results.append( T411SearchResult( self.opener, link['title'], downloadURL, quality ) )
-                
+
+        myDB = db.DBConnection()
+        sqlResults = myDB.select(
+            'SELECT s.show_name, e.showid, e.season, e.episode, e.status, e.airdate FROM tv_episodes AS e' +
+            ' INNER JOIN tv_shows AS s ON (e.showid = s.indexer_id)' +
+            ' WHERE e.airdate >= ' + str(search_date.toordinal()) +
+            ' AND (e.status IN (' + ','.join([str(x) for x in Quality.DOWNLOADED]) + ')' +
+            ' OR (e.status IN (' + ','.join([str(x) for x in Quality.SNATCHED]) + ')))'
+        )
+
+        if not sqlResults:
+            return []
+
+        for sqlshow in sqlResults:
+            self.show = helpers.findCertainShow(sickbeard.showList, int(sqlshow["showid"]))
+            if self.show:
+                curEp = self.show.getEpisode(int(sqlshow["season"]), int(sqlshow["episode"]))
+                searchString = self._get_episode_search_strings(curEp, add_string='PROPER|REPACK')
+
+                for item in self._doSearch(searchString[0]):
+                    title, url = self._get_title_and_url(item)
+                    results.append(classes.Proper(title, url, datetime.datetime.today(), self.show))
+
         return results
-    
-    def getResult(self, episodes):
-        """
-        Returns a result of the correct type for this provider
-        """
-        result = classes.TorrentDataSearchResult(episodes)
-        result.provider = self
 
-        return result    
-    
-class T411SearchResult:
-    
-    def __init__(self, opener, title, url, quality, audio_langs=None):
-        self.opener = opener
-        self.title = title
-        self.url = url
-        self.quality = quality
-        self.audio_langs=audio_langs
-        
-    def getNZB(self):
-        return self.opener.open( self.url , 'wb').read()
+    def seedRatio(self):
+        return self.ratio
 
-    def getQuality(self):
-        return self.quality
+
+class T411Auth(AuthBase):
+    """Attaches HTTP Authentication to the given Request object."""
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, r):
+        r.headers['Authorization'] = self.token
+        return r
+
+
+class T411Cache(tvcache.TVCache):
+    def __init__(self, provider):
+        tvcache.TVCache.__init__(self, provider)
+
+        # Only poll T411 every 10 minutes max
+        self.minTime = 10
+
+    def _getRSSData(self):
+        search_params = {'RSS': ['']}
+        return {'entries': self.provider._doSearch(search_params)}
+
 
 provider = T411Provider()
