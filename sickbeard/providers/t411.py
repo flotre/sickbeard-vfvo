@@ -69,8 +69,8 @@ class T411Provider(generic.TorrentProvider):
         results = []
         for showName in showNames:
             if (int(season) < 31):
-                results.append( self.getSearchParams(showName, show.audio_lang, 433 )
-                results.append( self.getSearchParams(showName, show.audio_lang, 637 )
+                results.append( self.getSearchParams(showName, show.audio_lang, 433 ))
+                results.append( self.getSearchParams(showName, show.audio_lang, 637 ))
             #results.append( self.getSearchParams(showName + " S%02d" % season, show.audio_lang, 433 )) TOO MANY ERRORS
             #results.append( self.getSearchParams(showName + " S%02d" % season, show.audio_lang, 637 ))
             #results.append( self.getSearchParams(showName + " S%02d" % season, show.audio_lang, 634 ))
