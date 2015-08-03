@@ -151,7 +151,11 @@ class Quality:
                 return x
 
         checkName = lambda list, func: func([re.search(x, name, re.I) for x in list])
-
+	
+	#reject h265 quality (not supported by mediacenter)
+	if checkName(["x265","HEVC"], any):
+		return Quality.UNKNOWN
+	
         if checkName(["(pdtv|hdtv|dsr|tvrip|web.dl|webrip|web-dl).(xvid|x264|h.?264)"], all) and not checkName(["(720|1080)[pi]"], all):
             return Quality.SDTV
         elif checkName(["(dvdrip|b[r|d]rip)(.ws)?.(xvid|divx|x264)"], any) and not checkName(["(720|1080)[pi]"], all):
