@@ -39,7 +39,7 @@ class T411Provider(generic.TorrentProvider):
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
         self.opener.addheaders = [('Content-Type', 'application/x-www-form-urlencoded'),('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.1.7) Gecko/20091221 Firefox/3.5.7 (.NET CLR 3.5.30729)')]
         
-        self.url = "http://www.t411.io"
+        self.url = "https://www.t411.io"
         
         self.login_done = False
         
