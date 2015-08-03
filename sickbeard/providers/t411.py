@@ -48,11 +48,11 @@ class T411Provider(generic.TorrentProvider):
     
     def getSearchParams(self, searchString, ep_obj, subcat, french=None):
         if ep_obj.show.audio_lang == "en" and french==None:
-            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'subcat': subcat,'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season), 'submit' : 'Recherche' } )
+            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'subcat': subcat,'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season),'term[51][]=1216', 'submit' : 'Recherche' } )
         elif ep_obj.show.audio_lang == "fr" or french:
-            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'subcat': subcat,'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season), 'submit' : 'Recherche' } )
+            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'subcat': subcat,'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season),'term[51][]=1210', 'submit' : 'Recherche' } )
         else:
-            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'subcat': subcat,'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season), 'submit' : 'Recherche' } )
+            return urllib.urlencode( {'search': searchString, 'cat' : 210, 'subcat': subcat,'term[46][]': self.episodeValue(ep_obj.scene_episode), 'term[45][]': self.seasonValue(ep_obj.scene_season),'term[51][]=1216', 'submit' : 'Recherche' } )
 
     def getSearchParamsSeason(self, searchString, audio_lang, subcat, french=None):
         if audio_lang == "en" and french==None:
